@@ -2,19 +2,23 @@
 
 An unofficial firmware modification for the volca drum, based on the official firmware v1.14. It adds performance features and fixes a handful of bugs.
 
-## At a glance
+## Contents
 
-- FUNC + knob shows the current parameter value without changing it
-- SWING extended to negative values
-- FUNC + SELECT cycles SRC only
-- ACCENT extended to negative values (for ghost notes)
-- SLICE extended — sub-step patterns
-- PROBABILITY gains Elektron-style trigger conditions — `A-B`, first bar, FILL
-- MUTE + STEP 7–16 clears motion sequences per knob
-- TOUCH FX on STEP 9–16
-- MIDI IN velocity finally works properly
+- [Disclaimer](#disclaimer)
+- [Control reference](#control-reference)
+- [New features and changed behavior](#new-features-and-changed-behavior)
+  - [Sound design](#sound-design)
+  - [Performance and per-Part sequencing](#performance-and-per-part-sequencing)
+  - [Editing and step parameters](#editing-and-step-parameters)
+  - [Performance effects and system behavior](#performance-effects-and-system-behavior)
+  - [Saving custom settings](#saving-custom-settings)
+- [Bug fixes](#bug-fixes)
+- [Installing](#installing)
+  - [Returning to the official firmware](#returning-to-the-official-firmware)
+- [Acknowledgements](#acknowledgements)
 
 ## Disclaimer
+
 This firmware is an unofficial project created independently of KORG and is not endorsed by, affiliated with, or supported by KORG. Installing it is a modification to the hardware and may void any warranty or support coverage.
 
 The flashing path used for updates is handled by a separate bootloader area that this firmware does not overwrite, so a failed write can usually be recovered by re-entering update-receive mode and flashing again.
@@ -23,107 +27,217 @@ I accept no responsibility for any damage, malfunction, or unexpected results th
 
 ---
 
-## What's new
+## Control reference
 
-### FUNC + knob shows the current parameter value
+| Control | Function |
+|---|---|
+| Hold MUTE + turn a sound knob | Soft-takeover editing |
+| Hold MUTE + LAYER, then STEP 1–6 | Toggle GLD for Parts 1–6 |
+| Hold MUTE + ACT. STEP, then STEP 1–6 | Toggle WRP for Parts 1–6 |
+| Hold MUTE + STEP JUMP, then STEP 1–6 | Cycle SPD for Parts 1–6 |
+| Hold FUNC + move a sound knob | Preview its stored value without editing |
+| Hold FUNC + turn SELECT on the normal screen | Cycle SRC only |
+| Hold MUTE + STEP 8–16 | Clear/undo one MOTION lane |
+| Hold STEP 9–16 on the normal screen | Apply TOUCH FX |
 
-Turning a knob on the volca drum is a jump — the parameter snaps to wherever the knob physically sits. Holding FUNC while you turn now displays the stored value instead of changing it.
+## New features and changed behavior
 
-### SWING extended to negative values
+### Sound design
 
-The stock range was `0...75`. It has now been expanded to `-75...75`.
+In EDIT/STEP, the parameter order is `BIT / FLD / DRV / CLP / FLT / PAN / GAN / QPI`.
 
-### FUNC + SELECT cycles SRC only
+#### FLT — a bipolar filter for every Part
 
-SELECT normally steps through every combination of SRC, MOD and EG. Hold FUNC and it cycles the SRC waveform on its own.
+Each Part now has its own filter:
 
-### ACCENT extended to negative values — ghost notes
+- `-100...-1`: 2-pole low-pass filter
+- `0`: bypass
+- `+1...+100`: 2-pole high-pass filter
 
-Stock ACCENT is `0...16`, so a step could only ever be louder than the LEVEL knob setting. Now `-15...16`: negative values duck a step below the base level, which is what you want for ghost notes and dynamics.
+In EDIT/STEP, use PARAM to select `FLT`, then turn LEVEL/VALUE to edit it. FLT is stored in the KIT.
 
-### SLICE extended — sub-step patterns
+#### CLP — soft or hard DRV clipping
 
-Stock SLICE is `1...16`: divide the step into N parts and play all of them. The negative side adds 17 sub-step patterns, up to 4 subdivisions.
+CLP is stored separately for each Part in the KIT. Select `CLP`, then use LEVEL/VALUE to choose:
 
-### PROBABILITY gains Elektron-style trigger conditions
+- `SFT` (default): the original KORG DRV response.
+- `HRD`: a pure hard-clipping path.
 
-The negative side of PRB adds trigger conditions:
+### Performance and per-Part sequencing
+
+#### GLD PART — per-Part MOTION interpolation control
+
+Hold `MUTE + LAYER` to open `GLD PART`. While both buttons are held, STEP 1–6 represent Parts 1–6. A lit STEP means GLD is ON for that Part; press a STEP to toggle it. Releasing LAYER returns to the normal `MUT PART` view if MUTE is still held. The six settings are stored in the PROGRAM.
+
+- ON: the Part's MOTION values are interpolated as normal.
+- OFF: the Part's MOTION values, including PITCH, change in discrete steps.
+
+#### WRP PART — stretch Active Step patterns across the bar
+
+Hold `MUTE + ACT. STEP` to open `WRP PART`. While both buttons are held, STEP 1–6 represent Parts 1–6. Press a STEP to toggle that Part; a lit STEP means WRP is ON. When fewer than 16 Active Steps are enabled, WRP distributes those enabled steps across the full bar instead of running the shortened pattern at the normal STEP interval. Releasing ACT. STEP returns to `MUT PART` if MUTE remains held. The six settings are stored in the PROGRAM.
+
+#### SPD PART — independent sequence speed per Part
+
+Hold `MUTE + STEP JUMP` to open `SPD PART`. While both buttons are held, STEP 1–6 represent Parts 1–6. Each press cycles that Part through three speeds:
+
+| Speed | LED |
+|---|---|
+| `1/1` | Off |
+| `1/2` | On |
+| `1/4` | Blinking |
+
+Releasing STEP JUMP returns to `MUT PART` if MUTE is still held. SPD slows the Part's complete timeline—STEP advance, triggers, PRB, SLICE and MOTION—without changing the selected SLICE count. A `1/2` pattern takes two physical bars to complete and a `1/4` pattern takes four. WRP is applied first and the resulting cycle is then slowed by SPD. Recording length follows the selected Part's speed. The six settings are stored in the PROGRAM.
+
+#### CPY PART copies the new Part settings
+
+Use CPY PART in the normal KORG way: select the source Part, then choose the destination Part with the corresponding FUNC + STEP operation. CPY PART copies the standard Part data together with FLT, CLP, GLD, WRP and SPD from that physical source Part to that physical destination Part. MUTE is deliberately not copied.
+
+### Editing and step parameters
+
+#### FUNC + knob shows the stored value
+
+Holding FUNC while moving a physical parameter knob previews its stored value without changing the parameter.
+
+This applies to the ten sound knobs: LEVEL, PITCH, MOD AMOUNT, MOD RATE, ATTACK, RELEASE, SEND, WG DECAY, WG BODY and WG TUNE.
+
+FUNC + SWING and FUNC + TEMPO retain their normal KORG functions rather than acting as value previews.
+
+#### MUTE + parameter knob soft takeover
+
+Holding MUTE while turning a parameter knob now edits from the current parameter value instead of immediately jumping to the knob's physical position. The full knob travel is scaled around that starting point, making controlled changes much easier during performance.
+
+This applies to the ten sound knobs: LEVEL, PITCH, MOD AMOUNT, MOD RATE, ATTACK, RELEASE, SEND, WG DECAY, WG BODY and WG TUNE. TEMPO, SWING, SELECT and PARAM keep their normal functions. Releasing MUTE clears the takeover anchor; the next MUTE + knob operation starts again from that parameter's then-current value.
+
+#### QPI LAY 1-2 PITCH editing preserves the interval
+
+With QPI enabled and LAY 1-2 selected, turning PITCH now transposes both layers while preserving their original semitone interval. Editing stops cleanly when either layer reaches its limit instead of collapsing the interval.
+
+QPI PITCH values are shown as note names using the LAY 1 pitch.
+
+#### ACCENT extended to negative values — ghost notes
+
+ACCENT covers `-15...+16` instead of the stock `0...16`. Negative values make a step quieter than the LEVEL setting, allowing ghost notes and wider dynamics.
+
+MIDI velocity uses the whole 32-value range: velocity 63 plays at the LEVEL setting, lower velocities reduce it, and higher velocities increase it.
+
+#### SLICE extended — and corrected
+
+Positive SLICE values `1...16` now produce the requested number of evenly spaced hits; `1` is the unsliced single hit. The negative side adds the following 17 sub-step patterns. Read each pattern from left to right within one STEP: `o` plays and `_` rests.
+
+| SLICE | Pattern | SLICE | Pattern | SLICE | Pattern |
+|---:|:---:|---:|:---:|---:|:---:|
+| `-1` | `_o` | `-7` | `oo__` | `-13` | `_oo_` |
+| `-2` | `oo_` | `-8` | `o__o` | `-14` | `_o_o` |
+| `-3` | `o_o` | `-9` | `ooo_` | `-15` | `_ooo` |
+| `-4` | `_o_` | `-10` | `oo_o` | `-16` | `__oo` |
+| `-5` | `_oo` | `-11` | `o_oo` | `-17` | `___o` |
+| `-6` | `__o` | `-12` | `_o__` |  |  |
+
+#### PROBABILITY with trigger conditions
+
+Positive probabilistic PRB values are now spaced in 5% increments: `5, 10, ... 100%`.
+
+The negative side provides these conditions:
 
 | Display | Meaning |
 |---|---|
-| `A-B` | Fires on A-th bar of every B-bar cycle (B = 2...8) |
-| `1St` | Fires only on the very first bar after PLAY |
-| `_1St` | The inverse — every bar except the first |
-| `FILL` | Fires only while the FILL touch FX is held |
-| `_FIL` | The inverse — muted while FILL is held |
+| `A-B` | Fires on bar A of each B-bar cycle, where B is 2...8 |
+| `1St` | Fires only on the first bar after PLAY |
+| `_1St` | Fires on every bar except the first |
+| `FILL` | Fires while the FILL touch effect is held |
+| `_FIL` | Fires while FILL is not held |
 
-Bars are counted per part. The counter resets on PLAY.
+Bar counters are independent for each Part and reset when PLAY starts.
 
-### MUTE + STEP 7–16 clears motion sequences per knob
+#### Per-knob MOTION clear and undo
 
-Stock firmware can only clear motion per part (`CLR MPRT`) or all of it at once (`CLR MALL`). Now every knob has its own `CLR` / `UND` pair: the first press clears that knob's motion on the selected part and layer, the second press undoes it.
+Hold MUTE and press the corresponding STEP to clear only that MOTION lane on the selected Part and layer. Repeat the operation to undo it.
 
-| STEP | 7 | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
-|---|---|---|---|---|---|---|---|---|---|---|
-| Target | PITCH | MOD AMT | MOD RATE | ATTACK | RELEASE | SEND | WAVE GUIDE (all) | WG DECAY | WG BODY | WG TUNE |
-| Display | `MPIt` | `MAMt` | `MrAt` | `MAtk` | `MrEL` | `MSNd` | `MWGd` | `MdEC` | `MbdY` | `MtUN` |
+| STEP | 8 | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
+|---|---|---|---|---|---|---|---|---|---|
+| Target | PITCH | MOD AMT | MOD RATE | ATTACK | RELEASE | SEND | WG DECAY | WG BODY | WG TUNE |
+| Display | `MPIt` | `MAMt` | `MrAt` | `MAtk` | `MrEL` | `MSNd` | `MdEC` | `MbdY` | `MtUN` |
 
-### TOUCH FX on STEP 9–16
+STEP 7 is unused.
 
-Momentary performance effects, active only while the step key is held.
+### Performance effects and system behavior
+
+#### TOUCH FX on STEP 9–16
+
+On the normal performance screen, the effects are active only while their STEP keys are held.
 
 | STEP | 9 | 10 | 11 | 12 | 13 | 14 | 15 | 16 |
 |---|---|---|---|---|---|---|---|---|
 | Display | `OCuP` | `OCdn` | `Stut` | `rev` | `bit` | `SEnd` | `WEt` | `FILL` |
-| Effect | Octave up | Octave down | Stutter gate | Reverse | Bit crush | Wave guide full send | Wave guide wet only | FILL condition |
+| Effect | Octave up | Octave down | Stutter gate | Reverse | Bit crush | WG full send | WG wet only | FILL condition |
 
-- **Several FX can be held at once.** Only three pairs are mutually exclusive — `OCuP`/`OCdn`, `SEnd`/`WEt`, `Stut`/`rev`.
+Several effects can be held together. `OCuP/OCdn`, `SEnd/WEt` and `Stut/rev` remain mutually exclusive within each pair.
 
-### MIDI IN velocity finally works properly
+#### Other behavior changes
 
-Velocity has always driven the accent amount, which is why in the stock firmware it could only ever make a note louder than the LEVEL knob — 17 steps, none of them below it. Now that ACCENT reaches into the negative, velocity works in the quiet direction too.
+- Full TEMPO Range uses more knob travel in the most useful ranges: roughly 30% for 10–60 BPM, 50% for 60–240 BPM and 20% for 240–600 BPM.
+- FUNC + SELECT cycles only the SRC waveform, while normal SELECT cycles the SRC/MOD/EG combinations.
+- At the low-battery warning level, `Lo Batt` is displayed for 1.5 seconds approximately every 15 seconds instead of the stock four-second interval. After a parameter value is displayed, the warning is held back for three seconds. The voltage thresholds and shutdown condition are unchanged.
 
-It now covers the full `-15...16` accent range in 32 discrete values, with velocity 63 playing the note exactly at the LEVEL knob setting.
+### Saving custom settings
+
+#### What is saved where
+
+| Scope | Custom settings |
+|---|---|
+| Per Part in the KIT | FLT, CLP |
+| Per Part in the PROGRAM | GLD PART, WRP PART, SPD PART |
 
 ---
 
 ## Bug fixes
 
-**SLICE did not divide the step evenly for some of its values.**
-Only eight of the sixteen values were correct; the rest fired extra hits at uneven intervals. Every value now gives exactly N evenly spaced hits.
+The following issues were present in KORG's official v1.14 firmware.
 
-**Undoing a part motion clear displayed `UND PART`.**
-The clear side reads `CLR MPRT`, so the undo side now reads `UND MPRT` to match.
+**An unsupported display character could corrupt Part 1 / LAY 2 / STEP 9 PITCH MOTION.**
+The stock display code used an invalid glyph index before checking it. Its out-of-range write happened to overlap the second PITCH MOTION value of that STEP. Invalid glyphs are now rejected before any table write.
 
-**AMOUNT behaved oddly when edited with LAY 1-2 selected.**
-Editing both layers at once did not treat AMOUNT as a bipolar parameter. It is now centered on 0.
+**Clock/phase correction could drop a STEP trigger or play one PROGRAM twice.**
+The stock sequencer depended on exact phase positions for STEP 1 and the pattern-chain boundary. A small forward correction now processes every crossed boundary once and in order.
 
-**Parameters saved with a negative value lost their default marker.**
-Reloading a program would not show the "default value" mark if the stored value was negative.
+**Part activity LEDs could remain on forever.**
+The stock timed-LED counter and bitmap could end in contradictory states when interrupted. Updates are now atomic and terminal states are repaired, while the original multi-blink sequence used by CPY PART remains intact.
 
-**TEMPO was hard to dial in with TEMPO Range set to Full.**
-The knob mapping has been redistributed — roughly 30 % of knob travel for 10–60 BPM, 50 % for 60–240 BPM, 20 % for 240–600 BPM.
+**Positive SLICE was uneven in the official firmware.**  
+All values now produce the requested number of evenly spaced hits.
+
+**Undoing a Part MOTION clear displayed `UND PART`.**  
+It now displays `UND MPRT`, matching `CLR MPRT`.
+
+**MOD AMOUNT behaved incorrectly with LAY 1-2 selected.**  
+Common editing now uses the same bipolar rule as single-layer editing.
+
+**Default markers failed on some signed values.**
+The stock comparison did not handle signed parameter values correctly. The marker now compares the saved and current values in the parameter's native format.
 
 ---
 
 ## Installing
 
-The update ships as an audio file, exactly the same way as KORG's official updater.
+The update ships as an audio file, using the same update method as KORG's official firmware.
 
-1. Connect your computer's headphone output to the volca drum's `SYNC IN` jack with a 3.5 mm stereo cable.
+1. Connect your computer or audio player's headphone output to the volca drum's `SYNC IN` jack with a 3.5 mm stereo cable.
 2. Hold FUNC and REC together and turn the power on. The unit is now in update-receive mode.
-3. Play `volca_drum_sys_0120.wav` all the way through and wait.
+3. Play `Volca_Drum_0121.wav` all the way through. Disable EQ, effects, fades, loudness normalization and notification sounds.
 4. If the display shows `UPD End`, turn off the volca drum.
 
-If the display shows `Dcd Err` during installation, the audio didn't decode cleanly — turn the playback volume up and switch off any EQ, effects or loudness normalization, then try again. A failed transfer leaves the existing firmware intact.
+If the display shows `Dcd Err` or `Sum Err`, the audio did not transfer cleanly. Check the cable and playback volume, make sure no audio processing is active, then retry from update-receive mode. A failed firmware transfer leaves the existing firmware intact.
 
-To check which firmware is installed, hold PLAY while turning the power on. After a successful update it reads `1.20`.
+To check which firmware is installed, hold PLAY while turning the power on. After a successful update it reads `1.21`.
 
 ### Returning to the official firmware
 
-KORG's updater refuses to install a version older than the one already on the unit. That check has been removed here, so you can play KORG's own `volca_drum_sys_0114.wav` at any time and be back on stock 1.14.
+KORG's updater normally refuses to install a version older than the one already on the unit. That version-downgrade check has been removed here, so you can play KORG's own `volca_drum_sys_0114.wav` and return to stock firmware v1.14.
+
+The firmware downgrade is supported, but KORG v1.14 does not understand negative SLICE or ACCENT values stored in a PROGRAM. Such steps can sound very different after returning to stock. Note any important settings first, and replace negative values before relying on the same PROGRAM under v1.14.
 
 ---
 
 ## Acknowledgements
+
 Many thanks to KORG for developing such a great product!

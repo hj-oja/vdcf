@@ -12,6 +12,7 @@ An unofficial firmware modification for the volca drum, based on the official fi
   - [Editing and step parameters](#editing-and-step-parameters)
   - [Performance effects and system behavior](#performance-effects-and-system-behavior)
   - [Saving custom settings](#saving-custom-settings)
+- [MIDI CC additions](#midi-cc-additions)
 - [Bug fixes](#bug-fixes)
 - [Installing](#installing)
   - [Returning to the official firmware](#returning-to-the-official-firmware)
@@ -189,6 +190,19 @@ Several effects can be held together. `OCuP/OCdn`, `SEnd/WEt` and `Stut/rev` rem
 | Per Part in the PROGRAM | GLD PART, WRP PART, SPD PART |
 
 ---
+
+## MIDI CC additions
+
+hj Firmware adds MIDI CC control for FLT and CLP in **split-channel (multi-channel) mode**. Send each CC on the channel of the Part you want to edit: channels 1–6 address Parts 1–6. MIDI RX ShortMessage must be enabled.
+
+| Parameter | CC number (decimal) | Value |
+|---|---:|---|
+| FLT | 54 | 0 = -100 (low-pass), 64 = 0 (bypass), 127 = +100 (high-pass) |
+| CLP | 55 | 0–63 = SFT; 64–127 = HRD |
+
+FLT values below 64 select the low-pass range; values above 64 select the high-pass range. The 7-bit range is scaled to the filter's range, so some intermediate filter settings are skipped. Both CCs set absolute values: sending the same value again does not toggle the setting.
+
+These are independent **7-bit CCs**, not the low bytes of 14-bit controls. Configure your controller or DAW accordingly. For example, send CC54 value 64 on MIDI channel 3 to bypass Part 3's filter, or CC55 value 127 on channel 3 to select its hard clipping.
 
 ## Bug fixes
 
